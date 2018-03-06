@@ -76,6 +76,7 @@ main(int argc, char **argv)
 			dup2(fdc, STDOUT_FILENO);
 			dup2(fdc, STDERR_FILENO);
 			close(fdc);
+			close(STDIN_FILENO);
 			execvp(argv[1], argv+1);
 			perror("excecvp()");
 			return 1;
