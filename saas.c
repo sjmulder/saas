@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <signal.h>
@@ -79,14 +80,14 @@ addrstr(struct sockaddr *addr, socklen_t addrlen)
 
 }
 
-static int
-listenany(char *host, char *port)
+static void
+listenany(char *host, char *port, fd_set *fds, int *fdmax)
 {
-	struct addrinfo	 hints;
-	struct addrinfo	*ai0, *ai;
-	int		 fd;
-	struct sockaddr	 addr;
-	socklen_t	 addrlen;
+	struct addrinfo		 hints;
+	struct addrinfo		*ai0, *ai;
+	int			 fd;
+	struct sockaddr_storage	 addr;
+	socklen_t		 addrlen;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -95,6 +96,9 @@ listenany(char *host, char *port)
 
 	if (getaddrinfo(host, port, &hints, &ai0) == -1)
 		err(1, "gettadrinfo(%s, %s)", host, port);
+
+	*fdmax = 0;
+	FD_ZERO(fds);
 
 	for (ai = ai0; ai; ai = ai->ai_next) {
 		printf("binding to %s... ", addrstr(ai->ai_addr,
@@ -117,14 +121,20 @@ listenany(char *host, char *port)
 		}
 
 		addrlen = sizeof(addr);
-		if (getsockname(fd, &addr, &addrlen) == -1)
+		if (getsockname(fd, (struct sockaddr *)&addr, &addrlen) == -1)
 			err(1, "getsockname()");
 
-		printf("success\nlistening on %s\n", addrstr(&addr, addrlen));
-		return fd;
+		FD_SET(fd, fds);
+		*fdmax = fd;
+
+		printf("listening on %s\n", addrstr((struct sockaddr *)&addr,
+		    addrlen));
 	}
 
-	errx(1, "no suitable addresses");
+	if (!*fdmax)
+		errx(1, "no suitable addresses");
+
+	freeaddrinfo(ai0);
 }
 
 int
@@ -133,37 +143,50 @@ main(int argc, char **argv)
 	char		 *host;
 	char		 *port;
 	char		**command;
-	int		  fds, fdc;
+	fd_set		  fds, readfds;
+	int		  fd, fdmax, clientfd;
 	struct sockaddr	  addr;
 	socklen_t 	  addrlen;
 
 	(void) argc;
 
 	parseargs(argv, &host, &port, &command);
-	fds = listenany(host, port);
+	listenany(host, port, &fds, &fdmax);
 
 	while (1) {
-		addrlen = sizeof(addr);
-		if ((fdc = accept(fds, &addr, &addrlen)) == -1)
-			err(1, "accept()");
+		FD_COPY(&fds, &readfds);
 
-		printf("accepted %s\n", addrstr(&addr, addrlen));
+		if (select(fdmax, &readfds, NULL, NULL, NULL) == -1)
+			err(1, "select()");
 
-		switch (fork()) {
-		case -1:
-			err(1, "fork()");
-		case 0:
-			close(fds);
-			dup2(fdc, STDOUT_FILENO);
-			dup2(fdc, STDERR_FILENO);
-			close(fdc);
-			close(STDIN_FILENO);
-			execvp(*command, command);
-			perror("excecvp()");
-			return 1;
-		default:
-			close(fdc);
-			break;
+		for (fd = 0; fd < fdmax; fd++) {
+			if (!FD_ISSET(fd, &fds) || !FD_ISSET(fd, &readfds))
+				continue;
+
+			addrlen = sizeof(addr);
+			if ((clientfd = accept(fd, &addr, &addrlen)) == -1)
+				err(1, "accept()");
+
+			printf("accepted %s\n", addrstr(&addr, addrlen));
+
+			switch (fork()) {
+			case -1:
+				err(1, "fork()");
+			case 0:
+				for (fd = 0; fd < fdmax; fd++)
+					if (FD_ISSET(fd, &fds))
+						close(fd);
+				dup2(clientfd, STDOUT_FILENO);
+				dup2(clientfd, STDERR_FILENO);
+				close(clientfd);
+				close(STDIN_FILENO);
+				execvp(*command, command);
+				perror("excecvp()");
+				return 1;
+			default:
+				close(clientfd);
+				break;
+			}
 		}
 	}
 
