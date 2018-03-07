@@ -1,7 +1,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/un.h>
 #include <unistd.h>
+#include <netdb.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,75 +9,156 @@
 #include <errno.h>
 #include <err.h>
 
-#define USAGE		"usage: saas program [arguments ...]"
-#define SOCKPATH	"/tmp/saas.sock"
+#define USAGE		"usage: saas [name [port]] -- program ..."
+#define DEFSOCK		"/tmp/saas.sock"
 #define MAXBACKLOG	64
 
-static sig_atomic_t	killed;
-
 static void
-onsigint(int sig)
+parseargs(char **argv, char **host, char **port, char ***command)
 {
-	(void) sig;
+	int	i;
+	int	seppos	= 0;
 
-	killed = 1;
+	for (i = 1; argv[i]; i++) {
+		if (!strcmp(argv[i], "--")) {
+			seppos = i;
+			break;
+		}
+	}
+
+	if (seppos > 3) {
+		warnx("too many arguments");
+		fputs(USAGE "\n", stderr);
+		exit(1);
+	}
+
+	*host = seppos > 1 ? argv[1] : DEFSOCK;
+	*port = seppos > 2 ? argv[2] : NULL;
+	*command = &argv[seppos+1];
+
+	if (!**command) {
+		warnx("no command given");
+		fputs(USAGE "\n", stderr);
+		exit(1);
+	}
+}
+
+static char *
+addrstr(struct sockaddr *addr, socklen_t addrlen)
+{
+	static char *s;
+
+	char	name[NI_MAXHOST];
+	char	serv[NI_MAXSERV];
+	int	res;
+
+	res = getnameinfo(addr, addrlen, name, sizeof(name), serv,
+	    sizeof(serv), NI_NUMERICHOST);
+	if (res == -1)
+		err(1, "getnameinfo()");
+
+	if (s) {
+		free(s);
+		s = NULL;
+	}
+
+	if (!name[0] && !serv[0])
+		return "anonymous socket";
+
+	if (!serv[0])
+		res = asprintf(&s, "%s", name);
+	else if (addr->sa_family == AF_INET6)
+		res = asprintf(&s, "[%s]:%s", name, serv);
+	else
+		res = asprintf(&s, "%s:%s", name, serv);
+
+	if (res == -1)
+		err(1, "asprintf()");
+
+	return s;
+
+}
+
+static int
+listenany(char *host, char *port)
+{
+	struct addrinfo	 hints;
+	struct addrinfo	*ai0, *ai;
+	int		 fd;
+	struct sockaddr	 addr;
+	socklen_t	 addrlen;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE | AI_CANONNAME;
+
+	if (getaddrinfo(host, port, &hints, &ai0) == -1)
+		err(1, "gettadrinfo(%s, %s)", host, port);
+
+	for (ai = ai0; ai; ai = ai->ai_next) {
+		printf("binding to %s... ", addrstr(ai->ai_addr,
+		    ai->ai_addrlen));
+
+		fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+		if (fd == -1) {
+			printf("%s\n", strerror(errno));
+			continue;
+		}
+
+		if (ai->ai_family == AF_UNIX)
+			unlink(host);
+
+		if (bind(fd, ai->ai_addr, ai->ai_addrlen) == -1 ||
+		    listen(fd, MAXBACKLOG) == -1) {
+			printf("%s\n", strerror(errno));
+			close(fd);
+			continue;
+		}
+
+		addrlen = sizeof(addr);
+		if (getsockname(fd, &addr, &addrlen) == -1)
+			err(1, "getsockname()");
+
+		printf("success\nlistening on %s\n", addrstr(&addr, addrlen));
+		return fd;
+	}
+
+	errx(1, "no suitable addresses");
 }
 
 int
 main(int argc, char **argv)
 {
-	int			fds, fdc;
-	struct sigaction	sa;
-	struct sockaddr_un	addr;
+	char		 *host;
+	char		 *port;
+	char		**command;
+	int		  fds, fdc;
+	struct sockaddr	  addr;
+	socklen_t 	  addrlen;
 
-	(void) argv;
+	(void) argc;
 
-	if (argc < 2) {
-		fputs(USAGE "\n", stderr);
-		return 1;
-	}
+	parseargs(argv, &host, &port, &command);
+	fds = listenany(host, port);
 
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = onsigint;
-	sa.sa_flags = 0;
-	sigemptyset(&sa.sa_mask);
-	sigaction(SIGINT, &sa, NULL);
+	while (1) {
+		addrlen = sizeof(addr);
+		if ((fdc = accept(fds, &addr, &addrlen)) == -1)
+			err(1, "accept()");
 
-	if ((fds = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-		perror("socket()");
-		return 0;
-	}
-
-	addr.sun_family = AF_UNIX;
-	strncpy(addr.sun_path, SOCKPATH, sizeof(addr.sun_path)-1);
-
-	if (bind(fds, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-		perror("bind()");
-		close(fds);
-		goto cleanup_fds;
-	}
-	
-	if (listen(fds, MAXBACKLOG) == -1) {
-		perror("listen()");
-		goto cleanup_bound;
-	}
-	
-	printf("listening on %s\n", addr.sun_path);
-
-	while ((fdc = accept(fds, NULL, NULL)) != -1) {
-		puts("accepted");
+		printf("accepted %s\n", addrstr(&addr, addrlen));
 
 		switch (fork()) {
 		case -1:
-			perror("fork()");
-			goto cleanup_bound;
+			err(1, "fork()");
 		case 0:
 			close(fds);
 			dup2(fdc, STDOUT_FILENO);
 			dup2(fdc, STDERR_FILENO);
 			close(fdc);
 			close(STDIN_FILENO);
-			execvp(argv[1], argv+1);
+			execvp(*command, command);
 			perror("excecvp()");
 			return 1;
 		default:
@@ -86,16 +167,5 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (errno != EINTR)
-		perror("accept()");
-
-cleanup_bound:
-	unlink(addr.sun_path);
-cleanup_fds:
-	close(fds);
-
-	if (killed)
-		raise(SIGINT);
-
-	return 1;
+	return -1;
 }
