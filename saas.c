@@ -95,7 +95,7 @@ listenany(char *host, char *port, fd_set *fds, int *fdmax)
 	hints.ai_flags = AI_PASSIVE | AI_CANONNAME;
 
 	if (getaddrinfo(host, port, &hints, &ai0) == -1)
-		err(1, "gettadrinfo(%s, %s)", host, port);
+		err(1, "getaddrinfo(%s, %s)", host, port);
 
 	*fdmax = 0;
 	FD_ZERO(fds);
