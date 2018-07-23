@@ -77,7 +77,6 @@ addrstr(struct sockaddr *addr, socklen_t addrlen)
 		err(1, "asprintf()");
 
 	return s;
-
 }
 
 static void
