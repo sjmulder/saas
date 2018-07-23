@@ -20,7 +20,7 @@ Serve quotes on port 5000:
 
     $ saas 0.0.0.0 5000 -- fortune
 
-Read them with netcat(1):
+Read them with nc(1):
 
     $ nc localhost 5000
 
