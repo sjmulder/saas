@@ -178,8 +178,8 @@ main(int argc, char **argv)
 						close(fd);
 				dup2(clientfd, STDOUT_FILENO);
 				dup2(clientfd, STDERR_FILENO);
+				dup2(clientfd, STDIN_FILENO);
 				close(clientfd);
-				close(STDIN_FILENO);
 				execvp(*command, command);
 				perror("excecvp()");
 				return 1;
