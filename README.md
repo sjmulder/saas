@@ -14,6 +14,9 @@ Turn a command line program into a network service.
 _sockfile_ (`/tmp/saas.sock` by default) and dispatches incoming connections
 to te given _program_.
 
+**NOTE**: this is a toy program. You should probably use
+[inetd(8)](https://man.openbsd.org/inetd.8).
+
 ## Examples
 
 Serve quotes on port 5000:
@@ -35,6 +38,7 @@ Uninstall with `make uninstall`.
 
 ## See also
 
+[inetd(8)](https://man.openbsd.org/inetd.8),
 [nc(1)](https://man.openbsd.org/nc.1),
 [websocketd(1)](https://github.com/joewalnes/websocketd).
 

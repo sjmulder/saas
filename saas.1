@@ -29,6 +29,11 @@ by default
 .Pc
 and dispatches incoming connections to te given
 .Ar program .
+.Pp
+.Sy Note:
+this is a toy program.
+You should probably use
+.Xr inetd 8 .
 .Sh EXAMPLES
 Serve quotes on port 5000:
 .Pp
@@ -39,6 +44,7 @@ Read them with
 .Pp
 .Dl $ nc localhost 5000
 .Sh SEE ALSO
+.Xr inetd 8 ,
 .Xr nc 1 ,
 .Xr websocketd 1
 .Sh AUTHORS
