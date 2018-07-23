@@ -1,0 +1,53 @@
+.Dd July 23, 2018
+.Dt SAAS 1
+.Os
+.Sh NAME
+.Nm saas
+.Nd turn a command line program into a network service
+.Sh SYNOPSIS
+.Nm
+.Ar hostname
+.Ar port
+--
+.Ar program
+.Ar ...
+.Nm
+.Op Ar sockfile
+--
+.Ar program
+.Ar ...
+.Sh DESCRIPTION
+.Nm
+listens on the given
+.Ar hostname
+and TCP
+.Ar port
+or UNIX socket
+.Ar sockfile
+.Po Pa /tmp/saas.sock
+by default
+.Pc
+and dispatches incoming connections to te given
+.Ar program .
+.Sh EXAMPLES
+Serve quotes on port 5000:
+.Pp
+.Dl $ saas 1.1.1.1 5000 -- fortune
+.Pp
+Read them with
+.Xr netcat 1 :
+.Pp
+.Dl $ nc localhost 5000
+.Sh SEE ALSO
+.Xr nc 1 ,
+.Xr websocketd 1
+.Sh AUTHORS
+By
+.An Sijmen J. Mulder
+.Aq Mt ik@sjmulder.nl .
+.Sh CAVEATS
+If a program buffers its output
+.Pq as most do when not connected to a an interactive terminal
+nothing will be sent to the client until the stream is flushed.
+Disable output buffering in the program or
+use a psuedo-TTY program to simulate a terminal.

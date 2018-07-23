@@ -13,10 +13,12 @@ clean:
 	rm -f saas
 
 install:
-	install -d $(bindir)
+	install -d $(bindir) $(man1dir)
 	install saas $(bindir)/
+	install saas.1 $(man1dir)/
 
 uninstall:
 	rm -f $(bindir)/saas
+	rm -f $(man1dir)/saas.1
 
 .PHONY: all clean
