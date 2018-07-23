@@ -154,7 +154,7 @@ main(int argc, char **argv)
 	char		 *host;
 	char		 *port;
 	char		**command;
-	fd_set		  fds, readfds;
+	fd_set		  listenfds, readfds;
 	int		  fd, fdmax, clientfd;
 	struct sockaddr	  addr;
 	socklen_t 	  addrlen;
@@ -164,10 +164,10 @@ main(int argc, char **argv)
 	signal(SIGCHLD, sigchld);
 
 	parseargs(argv, &host, &port, &command);
-	listenany(host, port, &fds, &fdmax);
+	listenany(host, port, &listenfds, &fdmax);
 
 	while (1) {
-		FD_COPY(&fds, &readfds);
+		FD_COPY(&listenfds, &readfds);
 
 		if (select(fdmax+1, &readfds, NULL, NULL, NULL) == -1) {
 			if (errno == EINTR)
@@ -190,7 +190,7 @@ main(int argc, char **argv)
 				err(1, "fork()");
 			case 0:
 				for (fd = 0; fd <= fdmax; fd++)
-					if (FD_ISSET(fd, &fds))
+					if (FD_ISSET(fd, &listenfds))
 						close(fd);
 				dup2(clientfd, STDOUT_FILENO);
 				dup2(clientfd, STDERR_FILENO);
