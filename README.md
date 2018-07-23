@@ -20,7 +20,7 @@ Serve quotes on port 5000:
 
     $ saas 0.0.0.0 5000 -- fortune
 
-Read them with nc(1):
+Read them with [nc(1)](https://man.openbsd.org/nc.1):
 
     $ nc localhost 5000
 
@@ -35,7 +35,8 @@ Uninstall with `make uninstall`.
 
 ## See also
 
-nc(1), websocketd(1).
+[nc(1)](https://man.openbsd.org/nc.1),
+[websocketd(1)](https://github.com/joewalnes/websocketd).
 
 ## Authors
 
