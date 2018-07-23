@@ -1,3 +1,5 @@
+/* saas.c - Copyright (c) 2018 Sijmen J. Mulder, see LICENSE.md */
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
