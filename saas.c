@@ -124,7 +124,8 @@ listenany(char *host, char *port, fd_set *fds, int *fdmax)
 			err(1, "getsockname()");
 
 		FD_SET(fd, fds);
-		*fdmax = fd;
+		if (fd > *fdmax)
+			*fdmax = fd;
 
 		printf("listening on %s\n", addrstr((struct sockaddr *)&addr,
 		    addrlen));
@@ -155,11 +156,11 @@ main(int argc, char **argv)
 	while (1) {
 		FD_COPY(&fds, &readfds);
 
-		if (select(fdmax, &readfds, NULL, NULL, NULL) == -1)
+		if (select(fdmax+1, &readfds, NULL, NULL, NULL) == -1)
 			err(1, "select()");
 
-		for (fd = 0; fd < fdmax; fd++) {
-			if (!FD_ISSET(fd, &fds) || !FD_ISSET(fd, &readfds))
+		for (fd = 0; fd <= fdmax; fd++) {
+			if (!FD_ISSET(fd, &readfds))
 				continue;
 
 			addrlen = sizeof(addr);
@@ -172,7 +173,7 @@ main(int argc, char **argv)
 			case -1:
 				err(1, "fork()");
 			case 0:
-				for (fd = 0; fd < fdmax; fd++)
+				for (fd = 0; fd <= fdmax; fd++)
 					if (FD_ISSET(fd, &fds))
 						close(fd);
 				dup2(clientfd, STDOUT_FILENO);
