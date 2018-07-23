@@ -1,4 +1,6 @@
-CFLAGS+=	-Wall -Wextra
+CFLAGS += -ansi
+CFLAGS += -Wall -Wextra -pedantic
+CFLAGS += -g
 
 all: saas
 
