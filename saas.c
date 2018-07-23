@@ -1,6 +1,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <sys/signal.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <signal.h>
@@ -13,6 +15,15 @@
 #define USAGE		"usage: saas [name [port]] -- program ..."
 #define DEFSOCK		"/tmp/saas.sock"
 #define MAXBACKLOG	64
+
+static void
+sigchld(int sig)
+{
+	(void)sig;
+
+	while (waitpid(-1, NULL, WNOHANG) < 1)
+		;
+}
 
 static void
 parseargs(char **argv, char **host, char **port, char ***command)
@@ -150,14 +161,19 @@ main(int argc, char **argv)
 
 	(void) argc;
 
+	signal(SIGCHLD, sigchld);
+
 	parseargs(argv, &host, &port, &command);
 	listenany(host, port, &fds, &fdmax);
 
 	while (1) {
 		FD_COPY(&fds, &readfds);
 
-		if (select(fdmax+1, &readfds, NULL, NULL, NULL) == -1)
+		if (select(fdmax+1, &readfds, NULL, NULL, NULL) == -1) {
+			if (errno == EINTR)
+				continue;
 			err(1, "select()");
+		}
 
 		for (fd = 0; fd <= fdmax; fd++) {
 			if (!FD_ISSET(fd, &readfds))
