@@ -65,7 +65,7 @@ addrstr(struct sockaddr *addr, socklen_t addrlen)
 	int	res;
 
 	res = getnameinfo(addr, addrlen, name, sizeof(name), serv,
-	    sizeof(serv), NI_NUMERICHOST);
+	    sizeof(serv), NI_NUMERICHOST | NI_NUMERICSERV);
 	if (res == -1)
 		err(1, "getnameinfo()");
 
