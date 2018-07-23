@@ -39,7 +39,7 @@ nc(1), websocketd(1).
 
 ## Authors
 
-Sijmen J. Mulder (<ik@sjmulder.nl>).
+Sijmen J. Mulder (<ik@sjmulder.nl>)
 
 ## Caveats
 
