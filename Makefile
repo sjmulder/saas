@@ -21,4 +21,4 @@ uninstall:
 	rm -f $(bindir)/saas
 	rm -f $(man1dir)/saas.1
 
-.PHONY: all clean
+.PHONY: all clean install uninstall
