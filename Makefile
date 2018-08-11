@@ -1,3 +1,7 @@
+DESTDIR   ?=
+PREFIX    ?= /usr/local
+MANPREFIX ?= $(PREFIX)/man
+
 CFLAGS += -ansi
 CFLAGS += -Wall -Wextra -pedantic
 CFLAGS += -g
@@ -12,13 +16,13 @@ all: saas
 clean:
 	rm -f saas
 
-install:
-	install -d $(bindir) $(man1dir)
-	install saas $(bindir)/
-	install saas.1 $(man1dir)/
+install: saas
+	install -d $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(MANPREFIX)/man1
+	install saas   $(DESTDIR)$(PREFIX)/bin/
+	install saas.1 $(DESTDIR)$(MANPREFIX)/man1/
 
 uninstall:
-	rm -f $(bindir)/saas
-	rm -f $(man1dir)/saas.1
+	rm -f $(DESTDIR)$(PREFIX)/bin/saas
+	rm -f $(DESTDIR)$(MANPREFIX)/man1/saas.1
 
 .PHONY: all clean install uninstall
