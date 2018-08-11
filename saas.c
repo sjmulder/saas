@@ -60,7 +60,7 @@ parseargs(char **argv, char **host, char **port, char ***command)
 static char *
 addrstr(struct sockaddr *addr, socklen_t addrlen)
 {
-	static char *s;
+	static char s[NI_MAXHOST+NI_MAXSERV+3];
 
 	char	name[NI_MAXHOST];
 	char	serv[NI_MAXSERV];
@@ -71,23 +71,15 @@ addrstr(struct sockaddr *addr, socklen_t addrlen)
 	if (res == -1)
 		err(1, "getnameinfo()");
 
-	if (s) {
-		free(s);
-		s = NULL;
-	}
-
 	if (!name[0] && !serv[0])
 		return "anonymous socket";
 
 	if (!serv[0])
-		res = asprintf(&s, "%s", name);
+		snprintf(s, sizeof(s), "%s", name);
 	else if (addr->sa_family == AF_INET6)
-		res = asprintf(&s, "[%s]:%s", name, serv);
+		snprintf(s, sizeof(s), "[%s]:%s", name, serv);
 	else
-		res = asprintf(&s, "%s:%s", name, serv);
-
-	if (res == -1)
-		err(1, "asprintf()");
+		snprintf(s, sizeof(s), "%s:%s", name, serv);
 
 	return s;
 }
@@ -169,7 +161,7 @@ main(int argc, char **argv)
 	listenany(host, port, &listenfds, &fdmax);
 
 	while (1) {
-		FD_COPY(&listenfds, &readfds);
+		readfds = listenfds;
 
 		if (select(fdmax+1, &readfds, NULL, NULL, NULL) == -1) {
 			if (errno == EINTR)

@@ -2,7 +2,7 @@ DESTDIR   ?=
 PREFIX    ?= /usr/local
 MANPREFIX ?= $(PREFIX)/man
 
-CFLAGS += -ansi
+CFLAGS += -ansi -D_DEFAULT_SOURCE
 CFLAGS += -Wall -Wextra -pedantic
 CFLAGS += -g
 
